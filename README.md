@@ -1,2 +1,28 @@
-# graduate-job-finder
-Python tool for filtering and scoring graduate software engineering jobs
+# Graduate Job Finder
+A Python tool that filters and scores graduate and junior software engineering jobs based on custom criteria.
+
+## Features
+- Filters graduate and junior jobs
+- Rejects senior/high-experience roles
+- Scores jobs based on keyword relevance
+- Exports matched and rejected jobs to CSV
+- Supports custom locations, keywords and banned phrases
+
+## Technologies Used
+- Python
+- CSV processing
+- Dictionaries and lists
+- Functions and modular code
+- Git and GitHub
+
+## Future Improvements
+- Real job API integration
+- Flask web dashboard
+- SQLite database support
+- Daily automated job searches
+- Email notifications
+
+## How to Run
+```bash
+python main.py
+```
