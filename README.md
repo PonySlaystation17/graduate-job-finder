@@ -2,6 +2,7 @@
 A Python tool that filters and scores graduate and junior software engineering jobs based on custom criteria.
 
 ## Features
+- Real job API integration
 - Filters graduate and junior jobs
 - Rejects senior/high-experience roles
 - Scores jobs based on keyword relevance
@@ -16,7 +17,6 @@ A Python tool that filters and scores graduate and junior software engineering j
 - Git and GitHub
 
 ## Future Improvements
-- Real job API integration
 - Flask web dashboard
 - SQLite database support
 - Daily automated job searches
