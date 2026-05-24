@@ -1,4 +1,4 @@
-locations = ["london", "liverpool", "edinburgh", "remote"]
+locations = ["london", "liverpool", "edinburgh", "leeds", "manchester", "remote"]
 
 keywords = {"python": 3,
             "java": 3,
