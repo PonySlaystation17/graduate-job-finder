@@ -3,6 +3,8 @@ from config import locations, keywords, required_tech_terms, banned_phrases, sea
 import requests
 import os
 from dotenv import load_dotenv
+import sqlite3
+from datetime import date
 
 load_dotenv()
 APP_ID = os.getenv("ADZUNA_APP_ID")
@@ -12,7 +14,71 @@ matched_jobs = []
 rejected_jobs = []
 seen_urls = set()
 
-#func to fetch jobs using Adzuna API
+def setup_database():
+    connection = sqlite3.connect("jobs.db")
+    cursor = connection.cursor()
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS jobs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT,
+        company TEXT,
+        location TEXT,
+        salary_min INTEGER,
+        salary_max INTEGER,
+        url TEXT UNIQUE,
+        score INTEGER,           
+        date_found TEXT,
+        applied INTEGER DEFAULT 0,
+        UNIQUE(title, company, location)
+    )
+    """)
+
+    connection.commit()
+    connection.close()
+
+def save_job_to_db(job):
+    connection = sqlite3.connect("jobs.db")
+    cursor = connection.cursor()
+
+    cursor.execute("""
+    INSERT OR IGNORE INTO jobs
+    (title, company, location, salary_min, salary_max, url, score, date_found)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        job["title"],
+        job["company"],
+        job["location"],
+        job.get("salary_min", 0),
+        job.get("salary_max", 0),
+        job["url"],
+        job["score"],
+        str(date.today())
+    ))
+
+    connection.commit()
+    connection.close()
+
+def view_top_jobs():
+    print("TITLE, COMPANY, LOCATION, SCORE, SALARY")
+    connection = sqlite3.connect("jobs.db")
+    cursor = connection.cursor()
+
+    cursor.execute("""
+    SELECT title, company, location, score, salary_min
+    FROM jobs
+    ORDER BY score DESC
+    LIMIT 10
+    """)
+    jobs = cursor.fetchall()
+
+    for job in jobs:
+        print(job)
+    
+    connection.commit()
+    connection.close()    
+
+# fetch jobs using Adzuna API
 def fetch_jobs():
     all_jobs = []
 
@@ -30,7 +96,15 @@ def fetch_jobs():
                 # print(response.status_code)
                 # print(response.text[:300])
 
-                data = response.json()
+                if response.status_code != 200:
+                    print("Request failed:", response.status_code)
+                    continue
+
+                try:
+                    data = response.json()
+                except requests.exceptions.JSONDecodeError:
+                    print("Could not read JSON response")
+                    continue
 
                 for job in data["results"]:
                     # if url not seen before, add to seen urls. Otherwise skip
@@ -50,7 +124,7 @@ def fetch_jobs():
 
     return all_jobs
 
-#func to score job
+# score job
 def score_job(title, description, location, salary_min):
     score = 0
     matched_keywords = []
@@ -66,7 +140,7 @@ def score_job(title, description, location, salary_min):
     if "backend" in title:
         score += 4
     if "games" in title:
-        score += 6
+        score += 10
 
     if salary_min >= 40000:
         score += 5
@@ -81,12 +155,12 @@ def score_job(title, description, location, salary_min):
             matched_keywords.append(keyword)
     return score, matched_keywords
 
-#func to reject job
+# reject job
 def reject_job(job, reasons):
     job["rejection_reason"] = reasons
     rejected_jobs.append(job)
 
-#func to read and filter jobs
+# read and filter jobs
 def load_jobs(jobs):
     for job in jobs:
 
@@ -119,6 +193,7 @@ def load_jobs(jobs):
             job["score"] = score
             job["matched_keywords"] = ", ".join(matched_keywords)
             matched_jobs.append(job)
+            save_job_to_db(job)
 
             # print(job["title"], "-", job["company"], "- Score:", score, "- Matched keywords:", job["matched_keywords"])
 
@@ -131,7 +206,7 @@ def load_jobs(jobs):
 
     print("----- Number of matches: ", len(matched_jobs), " -----")
 
-#func to save to csv file
+# save to csv file
 def save_csv(filename, data, fieldnames):
     with open(filename, "w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
@@ -140,6 +215,7 @@ def save_csv(filename, data, fieldnames):
         writer.writerows(data)
 
 def main():
+    setup_database()
     jobs = fetch_jobs()
     load_jobs(jobs)
 
@@ -163,5 +239,7 @@ def main():
 
     save_csv("matched_jobs.csv", matched_jobs, matched_fieldnames)
     save_csv("rejected_jobs.csv", rejected_jobs, rejected_fieldnames)
+
+    view_top_jobs()
 
 main()
