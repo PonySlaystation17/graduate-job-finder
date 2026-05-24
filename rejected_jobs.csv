@@ -1,0 +1,4 @@
+title,company,location,description,url,rejection_reason
+Graduate Software Engineer,ExampleTech,Manchester,Graduate role using Python and APIs,https://example.com/job1,Location not allowed
+Software Engineer,BigCorp,London,Requires 3+ years commercial experience,https://example.com/job3,Title not junior or graduate; Experience level too high
+Senior Backend Engineer,FinTech Ltd,Remote,Senior role requiring 5 years experience,https://example.com/job4,Title not junior or graduate; Experience level too high
