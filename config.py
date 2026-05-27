@@ -1,6 +1,3 @@
-locations = ["london", "liverpool", "edinburgh", "leeds", "manchester", "remote"]
-#locations = ["edinburgh"]
-
 search_locations = [
     "edinburgh",
     "london",
@@ -34,6 +31,7 @@ required_tech_terms = [
     "devops"
 ]
 
+# with scores
 keywords = {"python": 3,
             "java": 3,
             "c++": 3,

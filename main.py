@@ -1,19 +1,25 @@
 import csv
-from config import locations, keywords, required_tech_terms, banned_phrases, search_locations, search_terms, minimum_salary
+from config import keywords, required_tech_terms, banned_phrases, search_locations, search_terms, minimum_salary
 import requests
 import os
 from dotenv import load_dotenv
 import sqlite3
 from datetime import date
 
+# To activate venv:
+# .\.venv\Scripts\Activate.ps1
+
 load_dotenv()
 APP_ID = os.getenv("ADZUNA_APP_ID")
 API_KEY = os.getenv("ADZUNA_API_KEY")
+REED_API_KEY = os.getenv("REED_API_KEY")
 
 matched_jobs = []
 rejected_jobs = []
 seen_urls = set()
 
+
+######## DB STUFF #################
 def setup_database():
     connection = sqlite3.connect("jobs.db")
     cursor = connection.cursor()
@@ -29,6 +35,7 @@ def setup_database():
         url TEXT UNIQUE,
         score INTEGER,           
         date_found TEXT,
+        source TEXT,
         applied INTEGER DEFAULT 0,
         UNIQUE(title, company, location)
     )
@@ -43,8 +50,8 @@ def save_job_to_db(job):
 
     cursor.execute("""
     INSERT OR IGNORE INTO jobs
-    (title, company, location, salary_min, salary_max, url, score, date_found)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    (title, company, location, salary_min, salary_max, url, score, date_found, source)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         job["title"],
         job["company"],
@@ -53,19 +60,20 @@ def save_job_to_db(job):
         job.get("salary_max", 0),
         job["url"],
         job["score"],
-        str(date.today())
+        str(date.today()),
+        job["source"]
     ))
 
     connection.commit()
     connection.close()
 
 def view_top_jobs():
-    print("TITLE, COMPANY, LOCATION, SCORE, SALARY")
+    print("ID, TITLE, COMPANY, LOCATION, SCORE, SALARY, SOURCE")
     connection = sqlite3.connect("jobs.db")
     cursor = connection.cursor()
 
     cursor.execute("""
-    SELECT title, company, location, score, salary_min
+    SELECT id, title, company, location, score, salary_min, source
     FROM jobs
     ORDER BY score DESC
     LIMIT 10
@@ -78,8 +86,22 @@ def view_top_jobs():
     connection.commit()
     connection.close()    
 
+def mark_job_as_applied(job_id):
+    connection = sqlite3.connect("jobs.db")
+    cursor = connection.cursor()
+
+    cursor.execute("""
+    UPDATE jobs
+    SET applied = 1
+    WHERE id = ?
+    """, (job_id,))
+
+    connection.commit()
+    connection.close()
+
+######## APIs ##################
 # fetch jobs using Adzuna API
-def fetch_jobs():
+def fetch_jobs_adzuna():
     all_jobs = []
 
     for search_term in search_terms:
@@ -88,7 +110,7 @@ def fetch_jobs():
         for location in search_locations:
             formatted_location = location.replace(" ", "+")
 
-            for page in range(1, 4):
+            for page in range(1, 3):
                 url = f"https://api.adzuna.com/v1/api/jobs/gb/search/{page}?app_id={APP_ID}&app_key={API_KEY}&results_per_page=20&what={formatted_search}&where={formatted_location}"
 
                 response = requests.get(url)
@@ -113,6 +135,7 @@ def fetch_jobs():
                     seen_urls.add(job["redirect_url"])
 
                     cleaned_job = {
+                        "source": "Adzuna",
                         "title": job["title"],
                         "company": job["company"]["display_name"],
                         "location": job["location"]["display_name"],
@@ -124,6 +147,43 @@ def fetch_jobs():
 
     return all_jobs
 
+def fetch_jobs_reed():
+    all_jobs = []
+    url = "https://www.reed.co.uk/api/1.0/search"
+    for search_term in search_terms:
+        for location in search_locations:
+
+            params = {
+                "keywords": search_term,
+                "locationName": location,
+                "resultsToTake": 20
+            }
+            response = requests.get(
+            url,
+            params=params,
+            auth=(REED_API_KEY, "")
+            )
+    
+            data = response.json()
+
+            for job in data["results"]:
+
+                cleaned_job = {
+                    "source": "Reed",
+                    "title": job["jobTitle"],
+                    "company": job["employerName"],
+                    "location": job["locationName"],
+                    "description": job["jobDescription"],
+                    "url": job["jobUrl"],
+                    "salary_min": job.get("minimumSalary", 0),
+                    "salary_max": job.get("maximumSalary", 0)
+                }
+                all_jobs.append(cleaned_job)
+
+    return all_jobs
+
+
+######### Organise Data #############
 # score job
 def score_job(title, description, location, salary_min):
     score = 0
@@ -172,6 +232,7 @@ def load_jobs(jobs):
         score, matched_keywords = score_job(title, description, location, salary_min)
         reasons = [] # reasons for rejecting
 
+        # requirement checks
         if not any(term in title or term in description for term in required_tech_terms):
             reasons.append("Not a software/technical role")
 
@@ -181,7 +242,7 @@ def load_jobs(jobs):
         if any(phrase in description for phrase in banned_phrases):
             reasons.append("Experience level too high")
 
-        if not any(place in location for place in locations):
+        if not any(place in location for place in search_locations):
             reasons.append("Location not allowed")
         
         # reject if salary below min but not if none is shown
@@ -214,10 +275,16 @@ def save_csv(filename, data, fieldnames):
         writer.writeheader()
         writer.writerows(data)
 
+
+########### MAIN ###################
 def main():
     setup_database()
-    jobs = fetch_jobs()
-    load_jobs(jobs)
+    all_jobs = []
+
+    all_jobs.extend(fetch_jobs_adzuna())
+    all_jobs.extend(fetch_jobs_reed())
+
+    load_jobs(all_jobs)
 
     matched_fieldnames = [
     "title",
@@ -226,7 +293,10 @@ def main():
     "description",
     "url",
     "score",
-    "matched_keywords"
+    "salary_min",
+    "salary_max",
+    "matched_keywords",
+    "source"
     ]
     rejected_fieldnames = [
         "title",
@@ -234,12 +304,17 @@ def main():
         "location",
         "description",
         "url",
-        "rejection_reason"
+        "salary_min",
+        "salary_max",
+        "rejection_reason",
+        "source"
     ]
 
     save_csv("matched_jobs.csv", matched_jobs, matched_fieldnames)
     save_csv("rejected_jobs.csv", rejected_jobs, rejected_fieldnames)
 
     view_top_jobs()
+
+    mark_job_as_applied(2)
 
 main()
