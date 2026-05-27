@@ -1,28 +1,44 @@
 # Graduate Job Finder
-A Python tool that filters and scores graduate and junior software engineering jobs based on custom criteria.
+A Python project that searches graduate and junior software engineering jobs using the Adzuna API.
 
-## Features
-- Real job API integration
-- Filters graduate and junior jobs
-- Rejects senior/high-experience roles
-- Scores jobs based on keyword relevance
-- Exports matched and rejected jobs to CSV
-- Supports custom locations, keywords and banned phrases
+The project:
+- fetches real UK software jobs
+- filters irrelevant roles
+- scores jobs based on keywords and salary
+- removes duplicates
+- stores jobs in SQLite
+- exports matched/rejected jobs to CSV
 
 ## Technologies Used
 - Python
-- CSV processing
-- Dictionaries and lists
-- Functions and modular code
-- Git and GitHub
+- Requests
+- SQLite3
+- dotenv
+- REST APIs
 
-## Future Improvements
-- Flask web dashboard
-- SQLite database support
-- Daily automated job searches
-- Email notifications
+## Setup
+Install dependencies:
 
-## How to Run
+```bash
+pip install -r requirements.txt
+```
+
+Create a `.env` file:
+```env
+ADZUNA_APP_ID=your_app_id
+ADZUNA_API_KEY=your_api_key
+```
+
+Run:
 ```bash
 python main.py
 ```
+
+## Future Improvements
+- Flask dashboard
+- Email notifications
+- Better scoring system
+- Multi-source job aggregation
+
+## Author
+Cheydon Wiercx
