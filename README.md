@@ -27,6 +27,8 @@ Create a `.env` file:
 ```env
 ADZUNA_APP_ID=your_app_id
 ADZUNA_API_KEY=your_api_key
+
+REED_API_KEY=your_api_key
 ```
 
 Run:
