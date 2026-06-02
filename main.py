@@ -17,6 +17,7 @@ REED_API_KEY = os.getenv("REED_API_KEY")
 matched_jobs = []
 rejected_jobs = []
 seen_urls = set()
+seen_job_keys = set()
 
 
 ######## DB STUFF #################
@@ -75,6 +76,7 @@ def view_top_jobs():
     cursor.execute("""
     SELECT id, title, company, location, score, salary_min, source
     FROM jobs
+    WHERE applied = 0
     ORDER BY score DESC
     LIMIT 10
     """)
@@ -86,15 +88,15 @@ def view_top_jobs():
     connection.commit()
     connection.close()    
 
-def mark_job_as_applied(job_id):
+def mark_job_as_applied_by_url(job_url):
     connection = sqlite3.connect("jobs.db")
     cursor = connection.cursor()
 
     cursor.execute("""
     UPDATE jobs
     SET applied = 1
-    WHERE id = ?
-    """, (job_id,))
+    WHERE url = ?
+    """, (job_url,))
 
     connection.commit()
     connection.close()
@@ -152,33 +154,37 @@ def fetch_jobs_reed():
     url = "https://www.reed.co.uk/api/1.0/search"
     for search_term in search_terms:
         for location in search_locations:
+            for page in range(0, 2):
 
-            params = {
-                "keywords": search_term,
-                "locationName": location,
-                "resultsToTake": 20
-            }
-            response = requests.get(
-            url,
-            params=params,
-            auth=(REED_API_KEY, "")
-            )
-    
-            data = response.json()
+                results_to_skip = page * 20
 
-            for job in data["results"]:
-
-                cleaned_job = {
-                    "source": "Reed",
-                    "title": job["jobTitle"],
-                    "company": job["employerName"],
-                    "location": job["locationName"],
-                    "description": job["jobDescription"],
-                    "url": job["jobUrl"],
-                    "salary_min": job.get("minimumSalary", 0),
-                    "salary_max": job.get("maximumSalary", 0)
+                params = {
+                    "keywords": search_term,
+                    "locationName": location,
+                    "resultsToTake": 20,
+                    "resultsToSkip": results_to_skip
                 }
-                all_jobs.append(cleaned_job)
+                response = requests.get(
+                    url,
+                    params=params,
+                    auth=(REED_API_KEY, "")
+                )
+        
+                data = response.json()
+
+                for job in data["results"]:
+
+                    cleaned_job = {
+                        "source": "Reed",
+                        "title": job["jobTitle"],
+                        "company": job["employerName"],
+                        "location": job["locationName"],
+                        "description": job["jobDescription"],
+                        "url": job["jobUrl"],
+                        "salary_min": job.get("minimumSalary", 0),
+                        "salary_max": job.get("maximumSalary", 0)
+                    }
+                    all_jobs.append(cleaned_job)
 
     return all_jobs
 
@@ -189,18 +195,33 @@ def score_job(title, description, location, salary_min):
     score = 0
     matched_keywords = []
 
+    # Title matches
     if "graduate" in title:
         score += 5
     if "junior" in title:
         score += 3
+    if "entry level" in title:
+        score += 5
+
+    #Role type
+    if "software engineer" in title:
+        score += 5
+        matched_keywords.append("SE-title")
+    if "software developer" in title:
+        score += 5
+        matched_keywords.append("SD-title")
     if "python" in title:
         score += 5
+        matched_keywords.append("python-title")
     if "java" in title:
         score += 5
+        matched_keywords.append("java-title")
     if "backend" in title:
         score += 4
+        matched_keywords.append("backend-title")
     if "games" in title:
         score += 10
+        matched_keywords.append("games-title")
 
     if salary_min >= 40000:
         score += 5
@@ -213,6 +234,19 @@ def score_job(title, description, location, salary_min):
         if keyword in description:
             score += points
             matched_keywords.append(keyword)
+
+    # Penalties
+    if "intern" in title or "internship" in title:
+        score -= 5
+    if "sales" in title:
+        score -= 8
+    if "recruitment" in title:
+        score -= 8
+    if "consultant" in title and "software" not in title:
+        score -= 5
+    if "support" in title and "developer" not in title:
+        score -= 5
+
     return score, matched_keywords
 
 # reject job
@@ -228,6 +262,15 @@ def load_jobs(jobs):
         description = job["description"].lower()
         location = job["location"].lower()
         salary_min = job.get("salary_min") or 0
+
+        job_key = (
+            title.strip(),
+            job["company"].lower().strip(),
+            location.strip()
+        )
+        if job_key in seen_job_keys:
+            continue
+        seen_job_keys.add(job_key)
 
         score, matched_keywords = score_job(title, description, location, salary_min)
         reasons = [] # reasons for rejecting
@@ -278,43 +321,72 @@ def save_csv(filename, data, fieldnames):
 
 ########### MAIN ###################
 def main():
+
     setup_database()
-    all_jobs = []
 
-    all_jobs.extend(fetch_jobs_adzuna())
-    all_jobs.extend(fetch_jobs_reed())
+    while True:
 
-    load_jobs(all_jobs)
+        print("\n--- Graduate Job Finder ---")
+        print("1. Fetch new jobs")
+        print("2. View top jobs")
+        print("3. Mark job as applied")
+        print("4. Exit")
 
-    matched_fieldnames = [
-    "title",
-    "company",
-    "location",
-    "description",
-    "url",
-    "score",
-    "salary_min",
-    "salary_max",
-    "matched_keywords",
-    "source"
-    ]
-    rejected_fieldnames = [
-        "title",
-        "company",
-        "location",
-        "description",
-        "url",
-        "salary_min",
-        "salary_max",
-        "rejection_reason",
-        "source"
-    ]
+        choice = input("Choose an option: ")
 
-    save_csv("matched_jobs.csv", matched_jobs, matched_fieldnames)
-    save_csv("rejected_jobs.csv", rejected_jobs, rejected_fieldnames)
+        if choice == "1":
 
-    view_top_jobs()
+            all_jobs = []
 
-    mark_job_as_applied(2)
+            all_jobs.extend(fetch_jobs_adzuna())
+            all_jobs.extend(fetch_jobs_reed())
 
-main()
+            load_jobs(all_jobs)
+
+            matched_fieldnames = [
+                "title",
+                "company",
+                "location",
+                "description",
+                "url",
+                "score",
+                "salary_min",
+                "salary_max",
+                "matched_keywords",
+                "source"
+            ]
+            rejected_fieldnames = [
+                "title",
+                "company",
+                "location",
+                "description",
+                "url",
+                "salary_min",
+                "salary_max",
+                "rejection_reason",
+                "source"
+            ]
+
+            save_csv("matched_jobs.csv", matched_jobs, matched_fieldnames)
+            save_csv("rejected_jobs.csv", rejected_jobs, rejected_fieldnames)
+
+        elif choice == "2":
+            view_top_jobs()
+
+        elif choice == "3":
+            job_url = input("Please paste the job URL that you applied for: ")
+            mark_job_as_applied_by_url(job_url)
+            print("Job marked as applied.")
+
+        elif choice == "4":
+            print("Goodbye.")
+            break
+
+        else:
+            print("Invalid option.")
+
+
+if __name__ == "__main__":
+    main()
+
+
