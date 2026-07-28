@@ -25,21 +25,54 @@ def setup_database():
     connection = sqlite3.connect("jobs.db")
     cursor = connection.cursor()
 
+    # Create the table for a brand-new database.
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS jobs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT,
-        company TEXT,
-        location TEXT,
-        salary_min INTEGER,
-        salary_max INTEGER,
-        url TEXT UNIQUE,
-        score INTEGER,           
-        date_found TEXT,
-        source TEXT,
-        applied INTEGER DEFAULT 0,
-        UNIQUE(title, company, location)
-    )
+        CREATE TABLE IF NOT EXISTS jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            company TEXT,
+            location TEXT,
+            salary_min INTEGER,
+            salary_max INTEGER,
+            url TEXT UNIQUE,
+            score INTEGER,
+            date_found TEXT,
+            source TEXT,
+            applied INTEGER DEFAULT 0,
+            last_seen TEXT,
+            active INTEGER DEFAULT 1,
+            UNIQUE(title, company, location)
+        )
+    """)
+
+    # Check which columns already exist in an older database.
+    cursor.execute("PRAGMA table_info(jobs)")
+    columns = [column[1] for column in cursor.fetchall()]
+
+    # Add new columns only when they are missing.
+    if "last_seen" not in columns:
+        cursor.execute("""
+            ALTER TABLE jobs
+            ADD COLUMN last_seen TEXT
+        """)
+
+    if "active" not in columns:
+        cursor.execute("""
+            ALTER TABLE jobs
+            ADD COLUMN active INTEGER DEFAULT 1
+        """)
+
+    # Fill the new fields for jobs already in the database.
+    cursor.execute("""
+        UPDATE jobs
+        SET last_seen = date_found
+        WHERE last_seen IS NULL
+    """)
+
+    cursor.execute("""
+        UPDATE jobs
+        SET active = 1
+        WHERE active IS NULL
     """)
 
     connection.commit()
@@ -49,10 +82,24 @@ def save_job_to_db(job):
     connection = sqlite3.connect("jobs.db")
     cursor = connection.cursor()
 
+    today = str(date.today())
+
     cursor.execute("""
-    INSERT OR IGNORE INTO jobs
-    (title, company, location, salary_min, salary_max, url, score, date_found, source)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR IGNORE INTO jobs
+        (
+            title,
+            company,
+            location,
+            salary_min,
+            salary_max,
+            url,
+            score,
+            date_found,
+            source,
+            last_seen,
+            active
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         job["title"],
         job["company"],
@@ -61,20 +108,51 @@ def save_job_to_db(job):
         job.get("salary_max", 0),
         job["url"],
         job["score"],
-        str(date.today()),
-        job["source"]
+        today,
+        job["source"],
+        today,
+        1
+    ))
+
+    cursor.execute("""
+        UPDATE jobs
+        SET
+            last_seen = ?,
+            active = 1,
+            salary_min = ?,
+            salary_max = ?,
+            score = ?,
+            url = ?,
+            source = ?
+        WHERE url = ?
+        OR (
+            title = ?
+            AND company = ?
+            AND location = ?
+        )
+    """, (
+        today,
+        job.get("salary_min", 0),
+        job.get("salary_max", 0),
+        job["score"],
+        job["url"],
+        job["source"],
+        job["url"],
+        job["title"],
+        job["company"],
+        job["location"]
     ))
 
     connection.commit()
     connection.close()
 
 def view_top_jobs():
-    print("ID, TITLE, COMPANY, LOCATION, SCORE, SALARY, SOURCE")
+    print("ID, TITLE, COMPANY, LOCATION, SCORE, SALARY, SOURCE, SCORE")
     connection = sqlite3.connect("jobs.db")
     cursor = connection.cursor()
 
     cursor.execute("""
-    SELECT id, title, company, location, score, salary_min, source
+    SELECT id, title, company, location, score, salary_min, source, score
     FROM jobs
     WHERE applied = 0
     ORDER BY score DESC
@@ -88,6 +166,51 @@ def view_top_jobs():
     connection.commit()
     connection.close()    
 
+def view_applied_jobs():
+    connection = sqlite3.connect("jobs.db")
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT id, title, company, location, source
+        FROM jobs
+        WHERE applied = 1
+        ORDER BY id DESC
+        """)
+
+    jobs = cursor.fetchall()
+
+    print("\n--- Applied Jobs ---")
+    if len(jobs) == 0:
+        print("No applied jobs saved.")
+    else:
+        for job in jobs:
+            print(job)
+
+    connection.close()
+
+def view_top_unapplied_jobs():
+    connection = sqlite3.connect("jobs.db")
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT id, title, company, location, source, score
+        FROM jobs
+        WHERE applied = 0
+        ORDER BY score DESC
+        LIMIT 10
+        """)
+
+    jobs = cursor.fetchall()
+
+    print("\n--- Top Unapplied for Jobs ---")
+    if len(jobs) == 0:
+        print("No unapplied jobs saved.")
+    else:
+        for job in jobs:
+            print(job)
+
+    connection.close()
+
 def mark_job_as_applied_by_url(job_url):
     connection = sqlite3.connect("jobs.db")
     cursor = connection.cursor()
@@ -95,6 +218,32 @@ def mark_job_as_applied_by_url(job_url):
     cursor.execute("""
     UPDATE jobs
     SET applied = 1
+    WHERE url = ?
+    """, (job_url,))
+
+    connection.commit()
+    connection.close()
+
+def mark_stale_jobs_inactive(days_old=14):
+    connection = sqlite3.connect("jobs.db")
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        UPDATE jobs
+        SET active = 0
+        WHERE applied = 0
+        AND last_seen < date('now', ?)
+    """, (f"-{days_old} days",))
+
+    connection.commit()
+    connection.close()
+
+def remove_job(job_url):
+    connection = sqlite3.connect("jobs.db")
+    cursor = connection.cursor()
+
+    cursor.execute("""
+    DELETE FROM jobs
     WHERE url = ?
     """, (job_url,))
 
@@ -197,7 +346,7 @@ def score_job(title, description, location, salary_min):
 
     # Title matches
     if "graduate" in title:
-        score += 5
+        score += 3
     if "junior" in title:
         score += 3
     if "entry level" in title:
@@ -330,7 +479,10 @@ def main():
         print("1. Fetch new jobs")
         print("2. View top jobs")
         print("3. Mark job as applied")
-        print("4. Exit")
+        print("4. View applied jobs")
+        print("5. View top unapplied for jobs")
+        print("6. Remove job from database")
+        print("Any other char. Exit")
 
         choice = input("Choose an option: ")
 
@@ -341,6 +493,8 @@ def main():
             all_jobs.extend(fetch_jobs_adzuna())
             all_jobs.extend(fetch_jobs_reed())
 
+            mark_stale_jobs_inactive()
+            
             load_jobs(all_jobs)
 
             matched_fieldnames = [
@@ -379,11 +533,19 @@ def main():
             print("Job marked as applied.")
 
         elif choice == "4":
-            print("Goodbye.")
-            break
+            view_applied_jobs()
+
+        elif choice == "5":
+            view_top_unapplied_jobs()
+
+        elif choice == "6":
+            url_to_remove = input("Please paste the job URL that you would like to remove:")
+            remove_job(url_to_remove)
+            print("Job removed.")
 
         else:
-            print("Invalid option.")
+            print("Goodbye.")
+            break
 
 
 if __name__ == "__main__":

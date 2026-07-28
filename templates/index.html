@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graduate Job Finder</title>
+</head>
+<body>
+
+    <h1>Graduate Job Finder</h1>
+
+    {% for job in jobs %}
+        <div>
+            <h2>{{ job[1] }}</h2>
+            <p>{{ job[2] }}</p>
+            <p>{{ job[3] }}</p>
+            <p>Score: {{ job[4] }}</p>
+            <p>Salary: £{{ job[5] }} - £{{ job[6] }}</p>
+            <p>Source: {{ job[7] }}</p>
+            <p>Score: {{ job[8] }}</p>
+            <a href="{{ job[9] }}" target="_blank">View job</a>
+        </div>
+
+        <hr>
+    {% endfor %}
+
+</body>
+</html>
