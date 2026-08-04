@@ -6,7 +6,11 @@ import sqlite3
 from dotenv import load_dotenv
 from scoring import score_job
 from config import required_tech_terms, banned_phrases, search_locations, search_terms, minimum_salary
-from database import setup_database
+from database import (
+    setup_database,
+    save_job_to_db,
+    mark_job_as_applied_by_url
+    )
 
 # To activate venv:
 # .\.venv\Scripts\Activate.ps1
@@ -86,19 +90,6 @@ def view_top_unapplied_jobs():
         for job in jobs:
             print(job)
 
-    connection.close()
-
-def mark_job_as_applied_by_url(job_url):
-    connection = sqlite3.connect("jobs.db")
-    cursor = connection.cursor()
-
-    cursor.execute("""
-    UPDATE jobs
-    SET applied = 1
-    WHERE url = ?
-    """, (job_url,))
-
-    connection.commit()
     connection.close()
 
 def mark_stale_jobs_inactive(days_old=14):

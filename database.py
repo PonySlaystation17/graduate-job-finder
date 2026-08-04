@@ -126,3 +126,28 @@ def save_job_to_db(job, database_name="jobs.db"):
     connection.commit()
     connection.close()
 
+def mark_job_as_applied_by_url(job_url, database_name="jobs.db"):
+    connection = sqlite3.connect(database_name)
+    cursor = connection.cursor()
+
+    cursor.execute("""
+    UPDATE jobs
+    SET applied = 1
+    WHERE url = ?
+    """, (job_url,))
+
+    connection.commit()
+    connection.close()
+
+def mark_job_as_applied_by_url(job_url, database_name="jobs.db"):
+    connection = sqlite3.connect(database_name)
+    cursor = connection.cursor()
+
+    cursor.execute("""
+    UPDATE jobs
+    SET applied = 1
+    WHERE url = ?
+    """, (job_url,))
+
+    connection.commit()
+    connection.close()
