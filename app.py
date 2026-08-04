@@ -10,7 +10,7 @@ def home():
     cursor = connection.cursor()
 
     cursor.execute("""
-        SELECT id, title, company, location, score, salary_min, salary_max, source, score, url
+        SELECT id, title, company, location, score, salary_min, salary_max, source, url
         FROM jobs
         WHERE applied = 0
         ORDER BY score DESC

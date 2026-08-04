@@ -7,7 +7,7 @@ from datetime import date
 from dotenv import load_dotenv
 from scoring import score_job
 from config import required_tech_terms, banned_phrases, search_locations, search_terms, minimum_salary
-
+from database import setup_database
 
 # To activate venv:
 # .\.venv\Scripts\Activate.ps1
@@ -24,63 +24,6 @@ seen_job_keys = set()
 
 
 ######## DB STUFF #################
-def setup_database():
-    connection = sqlite3.connect("jobs.db")
-    cursor = connection.cursor()
-
-    # Create the table for a brand-new database.
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS jobs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT,
-            company TEXT,
-            location TEXT,
-            salary_min INTEGER,
-            salary_max INTEGER,
-            url TEXT UNIQUE,
-            score INTEGER,
-            date_found TEXT,
-            source TEXT,
-            applied INTEGER DEFAULT 0,
-            last_seen TEXT,
-            active INTEGER DEFAULT 1,
-            UNIQUE(title, company, location)
-        )
-    """)
-
-    # Check which columns already exist in an older database.
-    cursor.execute("PRAGMA table_info(jobs)")
-    columns = [column[1] for column in cursor.fetchall()]
-
-    # Add new columns only when they are missing.
-    if "last_seen" not in columns:
-        cursor.execute("""
-            ALTER TABLE jobs
-            ADD COLUMN last_seen TEXT
-        """)
-
-    if "active" not in columns:
-        cursor.execute("""
-            ALTER TABLE jobs
-            ADD COLUMN active INTEGER DEFAULT 1
-        """)
-
-    # Fill the new fields for jobs already in the database.
-    cursor.execute("""
-        UPDATE jobs
-        SET last_seen = date_found
-        WHERE last_seen IS NULL
-    """)
-
-    cursor.execute("""
-        UPDATE jobs
-        SET active = 1
-        WHERE active IS NULL
-    """)
-
-    connection.commit()
-    connection.close()
-
 def save_job_to_db(job):
     connection = sqlite3.connect("jobs.db")
     cursor = connection.cursor()
