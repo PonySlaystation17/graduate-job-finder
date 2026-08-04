@@ -1,7 +1,7 @@
 import sqlite3
 
-def setup_database():
-    connection = sqlite3.connect("jobs.db")
+def setup_database(database_name="jobs.db"):
+    connection = sqlite3.connect(database_name)
     cursor = connection.cursor()
 
     # Create the table for a brand-new database.
