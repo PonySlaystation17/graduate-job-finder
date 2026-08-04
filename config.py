@@ -4,7 +4,7 @@ search_locations = [
     "liverpool",
     "leeds",
     "manchester",
-    "exeter"
+    "exeter",
     "remote"
 ]
 

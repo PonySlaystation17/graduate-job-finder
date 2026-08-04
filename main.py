@@ -493,10 +493,9 @@ def main():
             all_jobs.extend(fetch_jobs_adzuna())
             all_jobs.extend(fetch_jobs_reed())
 
+            load_jobs(all_jobs)
             mark_stale_jobs_inactive()
             
-            load_jobs(all_jobs)
-
             matched_fieldnames = [
                 "title",
                 "company",
