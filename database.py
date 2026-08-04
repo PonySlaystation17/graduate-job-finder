@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import date
 
 def setup_database(database_name="jobs.db"):
     connection = sqlite3.connect(database_name)
@@ -56,3 +57,72 @@ def setup_database(database_name="jobs.db"):
 
     connection.commit()
     connection.close()
+
+def save_job_to_db(job, database_name="jobs.db"):
+    connection = sqlite3.connect(database_name)
+    cursor = connection.cursor()
+
+    today = str(date.today())
+
+    cursor.execute("""
+        INSERT OR IGNORE INTO jobs
+        (
+            title,
+            company,
+            location,
+            salary_min,
+            salary_max,
+            url,
+            score,
+            date_found,
+            source,
+            last_seen,
+            active
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        job["title"],
+        job["company"],
+        job["location"],
+        job.get("salary_min", 0),
+        job.get("salary_max", 0),
+        job["url"],
+        job["score"],
+        today,
+        job["source"],
+        today,
+        1
+    ))
+
+    cursor.execute("""
+        UPDATE jobs
+        SET
+            last_seen = ?,
+            active = 1,
+            salary_min = ?,
+            salary_max = ?,
+            score = ?,
+            url = ?,
+            source = ?
+        WHERE url = ?
+        OR (
+            title = ?
+            AND company = ?
+            AND location = ?
+        )
+    """, (
+        today,
+        job.get("salary_min", 0),
+        job.get("salary_max", 0),
+        job["score"],
+        job["url"],
+        job["source"],
+        job["url"],
+        job["title"],
+        job["company"],
+        job["location"]
+    ))
+
+    connection.commit()
+    connection.close()
+

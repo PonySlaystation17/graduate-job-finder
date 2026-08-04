@@ -2,7 +2,6 @@ import csv
 import requests
 import os
 import sqlite3
-from datetime import date
 
 from dotenv import load_dotenv
 from scoring import score_job
@@ -24,74 +23,6 @@ seen_job_keys = set()
 
 
 ######## DB STUFF #################
-def save_job_to_db(job):
-    connection = sqlite3.connect("jobs.db")
-    cursor = connection.cursor()
-
-    today = str(date.today())
-
-    cursor.execute("""
-        INSERT OR IGNORE INTO jobs
-        (
-            title,
-            company,
-            location,
-            salary_min,
-            salary_max,
-            url,
-            score,
-            date_found,
-            source,
-            last_seen,
-            active
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        job["title"],
-        job["company"],
-        job["location"],
-        job.get("salary_min", 0),
-        job.get("salary_max", 0),
-        job["url"],
-        job["score"],
-        today,
-        job["source"],
-        today,
-        1
-    ))
-
-    cursor.execute("""
-        UPDATE jobs
-        SET
-            last_seen = ?,
-            active = 1,
-            salary_min = ?,
-            salary_max = ?,
-            score = ?,
-            url = ?,
-            source = ?
-        WHERE url = ?
-        OR (
-            title = ?
-            AND company = ?
-            AND location = ?
-        )
-    """, (
-        today,
-        job.get("salary_min", 0),
-        job.get("salary_max", 0),
-        job["score"],
-        job["url"],
-        job["source"],
-        job["url"],
-        job["title"],
-        job["company"],
-        job["location"]
-    ))
-
-    connection.commit()
-    connection.close()
-
 def view_top_jobs():
     print("ID, TITLE, COMPANY, LOCATION, SCORE, SALARY, SOURCE, SCORE")
     connection = sqlite3.connect("jobs.db")
