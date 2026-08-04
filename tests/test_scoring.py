@@ -20,6 +20,17 @@ class TestScoreJob(unittest.TestCase):
 
         self.assertEqual(result, expected)
 
+    def test_penalises_unsuitable_sales_role(self):
+        result = score_job(
+            "junior sales consultant",
+            "",
+            "london",
+            0
+        )
+
+        expected = (-10, [])
+
+        self.assertEqual(result, expected)
 
 if __name__ == "__main__":
     unittest.main()
