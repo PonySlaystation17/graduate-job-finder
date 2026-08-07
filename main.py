@@ -1,7 +1,6 @@
 import csv
 import requests
 import os
-import sqlite3
 
 from dotenv import load_dotenv
 from scoring import score_job
@@ -9,7 +8,12 @@ from config import required_tech_terms, banned_phrases, search_locations, search
 from database import (
     setup_database,
     save_job_to_db,
-    mark_job_as_applied_by_url
+    mark_job_as_applied_by_url,
+    mark_stale_jobs_inactive,
+    remove_job,
+    get_top_jobs,
+    get_applied_jobs,
+    get_top_unapplied_jobs
     )
 
 # To activate venv:
@@ -28,95 +32,34 @@ seen_job_keys = set()
 
 ######## DB STUFF #################
 def view_top_jobs():
-    print("ID, TITLE, COMPANY, LOCATION, SCORE, SALARY, SOURCE, SCORE")
-    connection = sqlite3.connect("jobs.db")
-    cursor = connection.cursor()
+    print("ID, TITLE, COMPANY, LOCATION, SCORE, SALARY, SOURCE")
 
-    cursor.execute("""
-    SELECT id, title, company, location, score, salary_min, source, score
-    FROM jobs
-    WHERE applied = 0
-    ORDER BY score DESC
-    LIMIT 10
-    """)
-    jobs = cursor.fetchall()
+    jobs = get_top_jobs()
 
     for job in jobs:
         print(job)
-    
-    connection.commit()
-    connection.close()    
 
 def view_applied_jobs():
-    connection = sqlite3.connect("jobs.db")
-    cursor = connection.cursor()
-
-    cursor.execute("""
-        SELECT id, title, company, location, source
-        FROM jobs
-        WHERE applied = 1
-        ORDER BY id DESC
-        """)
-
-    jobs = cursor.fetchall()
+    jobs = get_applied_jobs()
 
     print("\n--- Applied Jobs ---")
+
     if len(jobs) == 0:
         print("No applied jobs saved.")
     else:
         for job in jobs:
             print(job)
 
-    connection.close()
-
 def view_top_unapplied_jobs():
-    connection = sqlite3.connect("jobs.db")
-    cursor = connection.cursor()
-
-    cursor.execute("""
-        SELECT id, title, company, location, source, score
-        FROM jobs
-        WHERE applied = 0
-        ORDER BY score DESC
-        LIMIT 10
-        """)
-
-    jobs = cursor.fetchall()
+    jobs = get_top_unapplied_jobs()
 
     print("\n--- Top Unapplied for Jobs ---")
+
     if len(jobs) == 0:
         print("No unapplied jobs saved.")
     else:
         for job in jobs:
             print(job)
-
-    connection.close()
-
-def mark_stale_jobs_inactive(days_old=14):
-    connection = sqlite3.connect("jobs.db")
-    cursor = connection.cursor()
-
-    cursor.execute("""
-        UPDATE jobs
-        SET active = 0
-        WHERE applied = 0
-        AND last_seen < date('now', ?)
-    """, (f"-{days_old} days",))
-
-    connection.commit()
-    connection.close()
-
-def remove_job(job_url):
-    connection = sqlite3.connect("jobs.db")
-    cursor = connection.cursor()
-
-    cursor.execute("""
-    DELETE FROM jobs
-    WHERE url = ?
-    """, (job_url,))
-
-    connection.commit()
-    connection.close()
 
 ######## APIs ##################
 # fetch jobs using Adzuna API

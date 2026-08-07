@@ -151,3 +151,88 @@ def mark_job_as_applied_by_url(job_url, database_name="jobs.db"):
 
     connection.commit()
     connection.close()
+
+def mark_stale_jobs_inactive(days_old=14, database_name = "jobs.db"):
+    connection = sqlite3.connect(database_name)
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        UPDATE jobs
+        SET active = 0
+        WHERE applied = 0
+        AND last_seen < date('now', ?)
+    """, (f"-{days_old} days",))
+
+    connection.commit()
+    connection.close()
+
+def remove_job(job_url, database_name="jobs.db"):
+    connection = sqlite3.connect(database_name)
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        DELETE FROM jobs
+        WHERE url = ?
+    """, (job_url,))
+
+    connection.commit()
+    connection.close()
+
+def get_top_jobs(limit=10, database_name="jobs.db"):
+    connection = sqlite3.connect(database_name)
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT id, title, company, location, score, salary_min, source
+        FROM jobs
+        WHERE applied = 0
+        AND active = 1
+        ORDER BY score DESC
+        LIMIT ?
+    """, (limit,))
+
+    jobs = cursor.fetchall()
+    connection.close()
+
+    return jobs
+
+def get_applied_jobs(database_name="jobs.db"):
+    connection = sqlite3.connect(database_name)
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT id, title, company, location, source
+        FROM jobs
+        WHERE applied = 1
+        ORDER BY id DESC
+    """)
+
+    jobs = cursor.fetchall()
+    connection.close()
+
+    return jobs
+
+def get_top_unapplied_jobs(limit=10, database_name="jobs.db"):
+    connection = sqlite3.connect(database_name)
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT id, title, company, location, source, score
+        FROM jobs
+        WHERE applied = 0
+        AND active = 1
+        ORDER BY score DESC
+        LIMIT ?
+    """, (limit,))
+
+    jobs = cursor.fetchall()
+    connection.close()
+
+    return jobs
+
+
+
+
+
+
+
