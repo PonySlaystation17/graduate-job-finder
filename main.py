@@ -1,8 +1,5 @@
 import csv
-import requests
-import os
 
-from dotenv import load_dotenv
 from scoring import score_job
 from config import required_tech_terms, banned_phrases, search_locations, search_terms, minimum_salary
 from database import (
@@ -16,17 +13,14 @@ from database import (
     get_top_unapplied_jobs
     )
 
+from importers.adzuna import fetch_jobs_adzuna
+from importers.reed import fetch_jobs_reed
+
 # To activate venv:
 # .\.venv\Scripts\Activate.ps1
 
-load_dotenv()
-APP_ID = os.getenv("ADZUNA_APP_ID")
-API_KEY = os.getenv("ADZUNA_API_KEY")
-REED_API_KEY = os.getenv("REED_API_KEY")
-
 matched_jobs = []
 rejected_jobs = []
-seen_urls = set()
 seen_job_keys = set()
 
 
@@ -60,93 +54,6 @@ def view_top_unapplied_jobs():
     else:
         for job in jobs:
             print(job)
-
-######## APIs ##################
-# fetch jobs using Adzuna API
-def fetch_jobs_adzuna():
-    all_jobs = []
-
-    for search_term in search_terms:
-        formatted_search = search_term.replace(" ", "+")
-        
-        for location in search_locations:
-            formatted_location = location.replace(" ", "+")
-
-            for page in range(1, 3):
-                url = f"https://api.adzuna.com/v1/api/jobs/gb/search/{page}?app_id={APP_ID}&app_key={API_KEY}&results_per_page=20&what={formatted_search}&where={formatted_location}"
-
-                response = requests.get(url)
-
-                # print(response.status_code)
-                # print(response.text[:300])
-
-                if response.status_code != 200:
-                    print("Request failed:", response.status_code)
-                    continue
-
-                try:
-                    data = response.json()
-                except requests.exceptions.JSONDecodeError:
-                    print("Could not read JSON response")
-                    continue
-
-                for job in data["results"]:
-                    # if url not seen before, add to seen urls. Otherwise skip
-                    if job["redirect_url"] in seen_urls:
-                        continue
-                    seen_urls.add(job["redirect_url"])
-
-                    cleaned_job = {
-                        "source": "Adzuna",
-                        "title": job["title"],
-                        "company": job["company"]["display_name"],
-                        "location": job["location"]["display_name"],
-                        "description": job["description"],
-                        "url": job["redirect_url"]
-                    }
-
-                    all_jobs.append(cleaned_job)
-
-    return all_jobs
-
-def fetch_jobs_reed():
-    all_jobs = []
-    url = "https://www.reed.co.uk/api/1.0/search"
-    for search_term in search_terms:
-        for location in search_locations:
-            for page in range(0, 2):
-
-                results_to_skip = page * 20
-
-                params = {
-                    "keywords": search_term,
-                    "locationName": location,
-                    "resultsToTake": 20,
-                    "resultsToSkip": results_to_skip
-                }
-                response = requests.get(
-                    url,
-                    params=params,
-                    auth=(REED_API_KEY, "")
-                )
-        
-                data = response.json()
-
-                for job in data["results"]:
-
-                    cleaned_job = {
-                        "source": "Reed",
-                        "title": job["jobTitle"],
-                        "company": job["employerName"],
-                        "location": job["locationName"],
-                        "description": job["jobDescription"],
-                        "url": job["jobUrl"],
-                        "salary_min": job.get("minimumSalary", 0),
-                        "salary_max": job.get("maximumSalary", 0)
-                    }
-                    all_jobs.append(cleaned_job)
-
-    return all_jobs
 
 
 ######### Organise Data #############
