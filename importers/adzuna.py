@@ -15,6 +15,7 @@ seen_urls = set()
 
 def fetch_jobs_adzuna():
     all_jobs = []
+    fetch_successful = True
 
     for search_term in search_terms:
         formatted_search = search_term.replace(" ", "+")
@@ -25,13 +26,22 @@ def fetch_jobs_adzuna():
             for page in range(1, 3):
                 url = f"https://api.adzuna.com/v1/api/jobs/gb/search/{page}?app_id={APP_ID}&app_key={API_KEY}&results_per_page=20&what={formatted_search}&where={formatted_location}"
 
-                response = requests.get(url)
+                try:
+                    response = requests.get(
+                        url,
+                        timeout=10
+                    )
+                except requests.exceptions.RequestException as error:
+                    print("Adzuna request failed:", error)
+                    fetch_successful = False
+                    continue
 
                 # print(response.status_code)
                 # print(response.text[:300])
 
                 if response.status_code != 200:
-                    print("Request failed:", response.status_code)
+                    print("Adzuna request failed:", response.status_code)
+                    fetch_successful = False
                     continue
 
                 try:
@@ -57,4 +67,4 @@ def fetch_jobs_adzuna():
 
                     all_jobs.append(cleaned_job)
 
-    return all_jobs
+    return all_jobs, fetch_successful

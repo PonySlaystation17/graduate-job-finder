@@ -13,6 +13,8 @@ REED_API_KEY = os.getenv("REED_API_KEY")
 
 def fetch_jobs_reed():
     all_jobs = []
+    fetch_successful = True
+
     url = "https://www.reed.co.uk/api/1.0/search"
     for search_term in search_terms:
         for location in search_locations:
@@ -26,11 +28,22 @@ def fetch_jobs_reed():
                     "resultsToTake": 20,
                     "resultsToSkip": results_to_skip
                 }
-                response = requests.get(
-                    url,
-                    params=params,
-                    auth=(REED_API_KEY, "")
-                )
+                try:
+                    response = requests.get(
+                        url,
+                        params=params,
+                        auth=(REED_API_KEY, ""),
+                        timeout=10
+                    )
+                except requests.exceptions.RequestException as error:
+                    print("Reed request failed:", error)
+                    fetch_successful = False
+                    continue
+
+                if response.status_code != 200:
+                    print("Reed request failed:", response.status_code)
+                    fetch_successful = False
+                    continue
         
                 data = response.json()
 
@@ -48,4 +61,4 @@ def fetch_jobs_reed():
                     }
                     all_jobs.append(cleaned_job)
 
-    return all_jobs
+    return all_jobs, fetch_successful

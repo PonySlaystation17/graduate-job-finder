@@ -515,6 +515,90 @@ class TestDatabaseSetup(unittest.TestCase):
             self.assertEqual(len(jobs), 1)
             self.assertEqual(jobs[0][1], "Graduate Software Engineer")
 
+    def test_mark_stale_jobs_inactive_can_target_one_source(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            database_path = Path(temp_directory) / "test_jobs.db"
+
+            setup_database(database_path)
+
+            connection = sqlite3.connect(database_path)
+            cursor = connection.cursor()
+
+            cursor.execute("""
+                INSERT INTO jobs
+                (
+                    title, company, location, url, score,
+                    date_found, source, applied, last_seen, active
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                "Old Adzuna Job",
+                "Company A",
+                "Liverpool",
+                "https://example.com/adzuna-old",
+                10,
+                "2026-01-01",
+                "Adzuna",
+                0,
+                "2026-01-01",
+                1
+            ))
+
+            cursor.execute("""
+                INSERT INTO jobs
+                (
+                    title, company, location, url, score,
+                    date_found, source, applied, last_seen, active
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                "Old Reed Job",
+                "Company B",
+                "Liverpool",
+                "https://example.com/reed-old",
+                10,
+                "2026-01-01",
+                "Reed",
+                0,
+                "2026-01-01",
+                1
+            ))
+
+            connection.commit()
+            connection.close()
+
+            mark_stale_jobs_inactive(
+                days_old=14,
+                database_name=database_path,
+                source="Adzuna"
+            )
+
+            connection = sqlite3.connect(database_path)
+            cursor = connection.cursor()
+
+            cursor.execute("""
+                SELECT active
+                FROM jobs
+                WHERE source = 'Adzuna'
+            """)
+            adzuna_active = cursor.fetchone()[0]
+
+            cursor.execute("""
+                SELECT active
+                FROM jobs
+                WHERE source = 'Reed'
+            """)
+            reed_active = cursor.fetchone()[0]
+
+            connection.close()
+
+            self.assertEqual(adzuna_active, 0)
+            self.assertEqual(reed_active, 1)
+
+
+
+
+
 
 if __name__ == "__main__":
     unittest.main()

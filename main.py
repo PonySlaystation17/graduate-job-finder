@@ -149,11 +149,18 @@ def main():
 
             all_jobs = []
 
-            all_jobs.extend(fetch_jobs_adzuna())
-            all_jobs.extend(fetch_jobs_reed())
+            adzuna_jobs, adzuna_success = fetch_jobs_adzuna()
+            reed_jobs, reed_success = fetch_jobs_reed()
+
+            all_jobs.extend(adzuna_jobs)
+            all_jobs.extend(reed_jobs)
 
             load_jobs(all_jobs)
-            mark_stale_jobs_inactive()
+
+            if adzuna_success:
+                mark_stale_jobs_inactive(source="Adzuna")
+            if reed_success:
+                mark_stale_jobs_inactive(source="Reed")
             
             matched_fieldnames = [
                 "title",

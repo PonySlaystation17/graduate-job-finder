@@ -152,16 +152,28 @@ def mark_job_as_applied_by_url(job_url, database_name="jobs.db"):
     connection.commit()
     connection.close()
 
-def mark_stale_jobs_inactive(days_old=14, database_name = "jobs.db"):
+def mark_stale_jobs_inactive(days_old=14, database_name = "jobs.db", source=None):
     connection = sqlite3.connect(database_name)
     cursor = connection.cursor()
 
-    cursor.execute("""
-        UPDATE jobs
-        SET active = 0
-        WHERE applied = 0
-        AND last_seen < date('now', ?)
-    """, (f"-{days_old} days",))
+    if source is None:
+        cursor.execute("""
+            UPDATE jobs
+            SET active = 0
+            WHERE applied = 0
+            AND last_seen < date('now', ?)
+        """, (f"-{days_old} days",))
+    else:
+        cursor.execute("""
+            UPDATE jobs
+            SET active = 0
+            WHERE applied = 0
+            AND source = ?
+            AND last_seen < date('now', ?)
+        """, (
+            source,
+            f"-{days_old} days"
+        ))
 
     connection.commit()
     connection.close()

@@ -1,3 +1,4 @@
+import requests
 import unittest
 from unittest.mock import patch, Mock
 
@@ -28,8 +29,9 @@ class TestAdzunaImporter(unittest.TestCase):
 
         mock_get.return_value = mock_response
 
-        jobs = fetch_jobs_adzuna()
+        jobs, success = fetch_jobs_adzuna()
 
+        self.assertTrue(success)
         self.assertGreater(len(jobs), 0)
 
         job = jobs[0]
@@ -40,6 +42,16 @@ class TestAdzunaImporter(unittest.TestCase):
         self.assertEqual(job["location"], "Liverpool")
         self.assertEqual(job["description"], "Graduate Python developer role")
         self.assertEqual(job["url"], "https://example.com/job/1")
+
+    @patch("importers.adzuna.requests.get")
+    def test_fetch_jobs_adzuna_handles_timeout(self, mock_get):
+        mock_get.side_effect = requests.exceptions.Timeout
+
+        jobs, success = fetch_jobs_adzuna()
+
+        self.assertEqual(jobs, [])
+        self.assertFalse(success)
+
 
 
 if __name__ == "__main__":
