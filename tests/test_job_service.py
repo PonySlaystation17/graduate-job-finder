@@ -117,6 +117,41 @@ class TestJobService(unittest.TestCase):
 
         mock_save.assert_called_once()
 
+    @patch("job_service.save_job_to_db")
+    @patch("builtins.print")
+    def test_process_jobs_reports_only_new_matches(self, mock_print, mock_save):
+        mock_save.side_effect = [True, False]
+
+        jobs = [
+            {
+                "source": "Test",
+                "title": "Graduate Software Engineer",
+                "company": "Company A",
+                "location": "Liverpool",
+                "description": "Python developer role",
+                "url": "https://example.com/1",
+                "salary_min": 32000,
+                "salary_max": 35000
+            },
+            {
+                "source": "Test",
+                "title": "Junior Java Developer",
+                "company": "Company B",
+                "location": "London",
+                "description": "Java software developer role",
+                "url": "https://example.com/2",
+                "salary_min": 33000,
+                "salary_max": 36000
+            }
+        ]
+
+        process_jobs(jobs)
+
+        mock_print.assert_called_with(
+    "----- New matches found: 1 -----"
+)
+
+
 
 
 if __name__ == "__main__":

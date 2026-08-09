@@ -93,6 +93,7 @@ def save_job_to_db(job, database_name="jobs.db"):
         today,
         1
     ))
+    is_new_job = cursor.rowcount == 1
 
     cursor.execute("""
         UPDATE jobs
@@ -125,6 +126,8 @@ def save_job_to_db(job, database_name="jobs.db"):
 
     connection.commit()
     connection.close()
+
+    return is_new_job
 
 def mark_job_as_applied_by_url(job_url, database_name="jobs.db"):
     connection = sqlite3.connect(database_name)

@@ -45,6 +45,7 @@ def create_job_key(job):
     )
 
 def process_jobs(jobs):
+    new_matches = 0
     matched_jobs = []
     rejected_jobs = []
     seen_job_keys = set()
@@ -68,7 +69,10 @@ def process_jobs(jobs):
             job["score"] = score
             job["matched_keywords"] = ", ".join(matched_keywords)
             matched_jobs.append(job)
-            save_job_to_db(job)
+
+            is_new_job = save_job_to_db(job)
+            if is_new_job:
+                new_matches += 1
 
             # print(job["title"], "-", job["company"], "- Score:", score, "- Matched keywords:", job["matched_keywords"])
 
@@ -80,7 +84,7 @@ def process_jobs(jobs):
     # sort by score
     matched_jobs.sort(key=lambda job: job["score"], reverse=True)
 
-    print("----- Number of matches: ", len(matched_jobs), " -----")
+    print(f"----- New matches found: {new_matches} -----")
 
     return matched_jobs, rejected_jobs
 

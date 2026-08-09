@@ -595,7 +595,28 @@ class TestDatabaseSetup(unittest.TestCase):
             self.assertEqual(adzuna_active, 0)
             self.assertEqual(reed_active, 1)
 
+    def test_save_job_to_db_reports_whether_job_is_new(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            database_path = Path(temp_directory) / "test_jobs.db"
 
+            setup_database(database_path)
+
+            job = {
+                "title": "Graduate Software Engineer",
+                "company": "Example Ltd",
+                "location": "Liverpool",
+                "salary_min": 30000,
+                "salary_max": 35000,
+                "url": "https://example.com/job/new-check",
+                "score": 15,
+                "source": "Test"
+            }
+
+            first_save = save_job_to_db(job, database_path)
+            second_save = save_job_to_db(job, database_path)
+
+            self.assertTrue(first_save)
+            self.assertFalse(second_save)
 
 
 
