@@ -16,13 +16,10 @@ from database import (
 from importers.adzuna import fetch_jobs_adzuna
 from importers.reed import fetch_jobs_reed
 
+from job_service import process_jobs
+
 # To activate venv:
 # .\.venv\Scripts\Activate.ps1
-
-matched_jobs = []
-rejected_jobs = []
-seen_job_keys = set()
-
 
 ######## DB STUFF #################
 def view_top_jobs():
@@ -54,69 +51,6 @@ def view_top_unapplied_jobs():
     else:
         for job in jobs:
             print(job)
-
-
-######### Organise Data #############
-# reject job
-def reject_job(job, reasons):
-    job["rejection_reason"] = reasons
-    rejected_jobs.append(job)
-
-# read and filter jobs
-def load_jobs(jobs):
-    for job in jobs:
-
-        title = job["title"].lower()
-        description = job["description"].lower()
-        location = job["location"].lower()
-        salary_min = job.get("salary_min") or 0
-
-        job_key = (
-            title.strip(),
-            job["company"].lower().strip(),
-            location.strip()
-        )
-        if job_key in seen_job_keys:
-            continue
-        seen_job_keys.add(job_key)
-
-        score, matched_keywords = score_job(title, description, location, salary_min)
-        reasons = [] # reasons for rejecting
-
-        # requirement checks
-        if not any(term in title or term in description for term in required_tech_terms):
-            reasons.append("Not a software/technical role")
-
-        if "grad" not in title and "junior" not in title:
-            reasons.append("Title not junior or graduate")
-
-        if any(phrase in description for phrase in banned_phrases):
-            reasons.append("Experience level too high")
-
-        if not any(place in location for place in search_locations):
-            reasons.append("Location not allowed")
-        
-        # reject if salary below min but not if none is shown
-        if salary_min < minimum_salary and salary_min != 0:
-            reasons.append("Salary below minimum")
-        
-
-        if len(reasons) == 0:
-            job["score"] = score
-            job["matched_keywords"] = ", ".join(matched_keywords)
-            matched_jobs.append(job)
-            save_job_to_db(job)
-
-            # print(job["title"], "-", job["company"], "- Score:", score, "- Matched keywords:", job["matched_keywords"])
-
-        else:
-            reject_job(job, "; ".join(reasons))
-        
-
-    # sort by score
-    matched_jobs.sort(key=lambda job: job["score"], reverse=True)
-
-    print("----- Number of matches: ", len(matched_jobs), " -----")
 
 # save to csv file
 def save_csv(filename, data, fieldnames):
@@ -155,7 +89,7 @@ def main():
             all_jobs.extend(adzuna_jobs)
             all_jobs.extend(reed_jobs)
 
-            load_jobs(all_jobs)
+            matched_jobs, rejected_jobs = process_jobs(all_jobs)
 
             if adzuna_success:
                 mark_stale_jobs_inactive(source="Adzuna")
