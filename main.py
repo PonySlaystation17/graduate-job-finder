@@ -1,8 +1,5 @@
-from scoring import score_job
-from config import required_tech_terms, banned_phrases, search_locations, search_terms, minimum_salary
 from database import (
     setup_database,
-    save_job_to_db,
     mark_job_as_applied_by_url,
     mark_stale_jobs_inactive,
     remove_job,
@@ -135,5 +132,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
