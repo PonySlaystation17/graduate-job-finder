@@ -1,5 +1,3 @@
-import csv
-
 from scoring import score_job
 from config import required_tech_terms, banned_phrases, search_locations, search_terms, minimum_salary
 from database import (
@@ -51,15 +49,6 @@ def view_top_unapplied_jobs():
     else:
         for job in jobs:
             print(job)
-
-# save to csv file
-def save_csv(filename, data, fieldnames):
-    with open(filename, "w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-
-        writer.writeheader()
-        writer.writerows(data)
-
 
 ########### MAIN ###################
 def main():
@@ -119,9 +108,6 @@ def main():
                 "rejection_reason",
                 "source"
             ]
-
-            save_csv("matched_jobs.csv", matched_jobs, matched_fieldnames)
-            save_csv("rejected_jobs.csv", rejected_jobs, rejected_fieldnames)
 
         elif choice == "2":
             view_top_jobs()
