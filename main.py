@@ -16,7 +16,10 @@ from job_service import process_jobs
 # To activate venv:
 # .\.venv\Scripts\Activate.ps1
 
-######## DB STUFF #################
+# To run full test suite:
+# python -m unittest discover -s tests -p "test_*.py" -v
+
+######## CLI DISPLAY #################
 def view_top_jobs():
     print("ID, TITLE, COMPANY, LOCATION, SCORE, SALARY, SOURCE")
 
@@ -75,37 +78,13 @@ def main():
             all_jobs.extend(adzuna_jobs)
             all_jobs.extend(reed_jobs)
 
-            matched_jobs, rejected_jobs = process_jobs(all_jobs)
+            process_jobs(all_jobs)
 
             if adzuna_success:
                 mark_stale_jobs_inactive(source="Adzuna")
             if reed_success:
                 mark_stale_jobs_inactive(source="Reed")
             
-            matched_fieldnames = [
-                "title",
-                "company",
-                "location",
-                "description",
-                "url",
-                "score",
-                "salary_min",
-                "salary_max",
-                "matched_keywords",
-                "source"
-            ]
-            rejected_fieldnames = [
-                "title",
-                "company",
-                "location",
-                "description",
-                "url",
-                "salary_min",
-                "salary_max",
-                "rejection_reason",
-                "source"
-            ]
-
         elif choice == "2":
             view_top_jobs()
 
@@ -128,7 +107,6 @@ def main():
         else:
             print("Goodbye.")
             break
-
 
 if __name__ == "__main__":
     main()

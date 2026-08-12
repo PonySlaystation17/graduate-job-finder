@@ -13,6 +13,7 @@ def home():
         SELECT id, title, company, location, score, salary_min, salary_max, source, url
         FROM jobs
         WHERE applied = 0
+        AND active = 1
         ORDER BY score DESC
         LIMIT 10
     """)

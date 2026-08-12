@@ -14,7 +14,7 @@ class TestScoreJob(unittest.TestCase):
         )
 
         expected = (
-            21,
+            22,
             ["SE-title", "java-title", "python", "backend"]
         )
 

@@ -151,6 +151,62 @@ class TestJobService(unittest.TestCase):
     "----- New matches found: 1 -----"
 )
 
+    @patch("job_service.save_job_to_db")
+    def test_process_jobs_removes_cross_source_duplicates(self, mock_save):
+        mock_save.return_value = True
+
+        jobs = [
+            {
+                "source": "Adzuna",
+                "title": "Graduate Software Engineer",
+                "company": "Example Ltd",
+                "location": "Liverpool",
+                "description": "Python developer role",
+                "url": "https://adzuna.example.com/job/1",
+                "salary_min": 32000,
+                "salary_max": 35000
+            },
+            {
+                "source": "Reed",
+                "title": "Graduate Software Engineer",
+                "company": "Example Ltd",
+                "location": "Liverpool",
+                "description": "Python developer role",
+                "url": "https://reed.example.com/job/99",
+                "salary_min": 32000,
+                "salary_max": 35000
+            }
+        ]
+
+        matched_jobs, rejected_jobs = process_jobs(jobs)
+
+        self.assertEqual(len(matched_jobs), 1)
+        self.assertEqual(len(rejected_jobs), 0)
+        mock_save.assert_called_once()
+
+    def test_wrong_location_is_rejected(self):
+        job = {
+            "title": "Graduate Software Engineer",
+            "description": "Python developer role",
+            "location": "Cardiff",
+            "salary_min": 32000
+        }
+
+        reasons = get_rejection_reasons(job)
+
+        self.assertIn("Location not allowed", reasons)
+
+    def test_non_technical_role_is_rejected(self):
+        job = {
+            "title": "Graduate Marketing Assistant",
+            "description": "Marketing and communications role",
+            "location": "Liverpool",
+            "salary_min": 32000
+        }
+
+        reasons = get_rejection_reasons(job)
+
+        self.assertIn("Not a software/technical role", reasons)
 
 
 
