@@ -1,10 +1,10 @@
 import os
 import requests
 
+
 from dotenv import load_dotenv
 
 from config import search_locations, search_terms
-
 
 load_dotenv()
 
@@ -45,7 +45,12 @@ def fetch_jobs_reed():
                     fetch_successful = False
                     continue
         
-                data = response.json()
+                try:
+                    data = response.json()
+                except requests.exceptions.JSONDecodeError:
+                    print("Could not read JSON response")
+                    fetch_successful = False
+                    continue
 
                 for job in data["results"]:
 

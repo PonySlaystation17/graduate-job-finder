@@ -51,6 +51,22 @@ class TestReedImporter(unittest.TestCase):
         self.assertEqual(jobs, [])
         self.assertFalse(success)
 
+    @patch("importers.reed.requests.get")
+    def test_fetch_jobs_reed_handles_invalid_json(self, mock_get):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.side_effect = requests.exceptions.JSONDecodeError(
+            "Invalid JSON",
+            "",
+            0
+        )
+
+        mock_get.return_value = mock_response
+
+        jobs, success = fetch_jobs_reed()
+
+        self.assertEqual(jobs, [])
+        self.assertFalse(success)
 
 
 

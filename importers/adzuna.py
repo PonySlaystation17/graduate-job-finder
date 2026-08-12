@@ -11,11 +11,11 @@ load_dotenv()
 APP_ID = os.getenv("ADZUNA_APP_ID")
 API_KEY = os.getenv("ADZUNA_API_KEY")
 
-seen_urls = set()
 
 def fetch_jobs_adzuna():
     all_jobs = []
     fetch_successful = True
+    seen_urls = set()
 
     for search_term in search_terms:
         formatted_search = search_term.replace(" ", "+")
@@ -48,6 +48,7 @@ def fetch_jobs_adzuna():
                     data = response.json()
                 except requests.exceptions.JSONDecodeError:
                     print("Could not read JSON response")
+                    fetch_successful = False
                     continue
 
                 for job in data["results"]:
